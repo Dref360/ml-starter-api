@@ -1,10 +1,12 @@
-from typing import Dict
+from typing import Type, TypeVar
 
 from pydantic import BaseModel
 from pymongo import MongoClient
 
 from ml_starter_api.config import Config
 from ml_starter_api.models.predictions import NamedModel
+
+T = TypeVar("T", bound=BaseModel)
 
 
 class DatabaseManager:
@@ -20,11 +22,11 @@ class DatabaseManager:
         out = collection.find_one({"request": request.dict(), "config": self.cfg.dict()})
         return out is not None
 
-    def get_cache(self, request: NamedModel) -> Dict:
+    def get_cache(self, request: NamedModel, to: Type[T]) -> T:
         db = self._get_database()
         collection = db[request.name]
         out = collection.find_one({"request": request.dict(), "config": self.cfg.dict()})
-        return out["response"]
+        return to(**out["response"])
 
     def store(self, request: NamedModel, output: BaseModel):
         db = self._get_database()

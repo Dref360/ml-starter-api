@@ -16,7 +16,7 @@ def test_database_manager(simple_config, simple_request):
     assert manager.in_cache(simple_request)
 
     # Retrieving the data get the same data
-    retrieved = manager.get_cache(simple_request)
+    retrieved = manager.get_cache(simple_request, PredictionOutput)
     assert retrieved == output
 
     # Another request is not in cache

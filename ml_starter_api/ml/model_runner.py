@@ -1,3 +1,5 @@
+from typing import Optional, Dict
+
 import numpy as np
 import structlog
 import torch
@@ -19,7 +21,7 @@ log = structlog.get_logger("ModelRunner")
 class ModelRunner:
     def __init__(self, cfg: Config):
         self.cfg = cfg
-        self._loaded_model = {}
+        self._loaded_model: Dict[str, Pipeline] = {}
         self.db_manager = DatabaseManager(cfg)
 
     def get_model(self, name):
@@ -42,7 +44,7 @@ class ModelRunner:
     def run_prediction(self, request: PredictionInput) -> PredictionOutput:
         if self.db_manager.in_cache(request):
             log.info("Getting predictions from cache.")
-            return PredictionOutput(**self.db_manager.get_cache(request))
+            return self.db_manager.get_cache(request, PredictionOutput)
         else:
             log.info("Run prediction on model.")
             output = self._get_prediction(request)
@@ -52,14 +54,12 @@ class ModelRunner:
     def _get_prediction(self, request) -> PredictionOutput:
         model = self.get_model(self.cfg.model_name)
         out = [sc["score"] for sc in model(request.sentence)[0]]
+        loss: Optional[float] = None
         if request.label:
             # If the user gives the label, we gives the loss to.
-            loss = F.nll_loss(
+            _loss = F.nll_loss(
                 torch.FloatTensor(out).unsqueeze(0),
                 torch.LongTensor([request.label]),
             )
-            loss = loss.squeeze().item()
-
-        else:
-            loss = None
+            loss = _loss.squeeze().item()
         return PredictionOutput(distribution=out, prediction=np.argmax(out), loss=loss)
