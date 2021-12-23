@@ -1,4 +1,4 @@
 {
   "model_name": "distilbert-base-uncased-finetuned-sst-2-english",
-  "db": "mongodb://database:27017"
+  "db": "/tmp/database.db"
 }

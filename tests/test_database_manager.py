@@ -2,33 +2,34 @@ from copy import deepcopy
 
 import pytest
 
-from ml_starter_api.database.manager import DatabaseManager
+from ml_starter_api.config import Config
 from ml_starter_api.models.predictions import PredictionOutput
 
 
-def test_database_manager(simple_config, simple_request):
-    manager = DatabaseManager(simple_config)
-    assert not manager.in_cache(simple_request)
+def test_database_manager(simple_config, simple_request, db_manager):
+    assert db_manager.get_cache(simple_request, PredictionOutput) is None
 
     # Store data
-    output = PredictionOutput(distribution=[0.6, 0.7], loss=None, prediction=0)
-    manager.store(simple_request, output)
-    assert manager.in_cache(simple_request)
+    output = PredictionOutput(input_key_id=simple_request.id,
+                              config_id=simple_config.id,
+                              distribution=[0.6, 0.7], loss=None, prediction=0)
+    db_manager.store(output)
+    assert db_manager.get_cache(simple_request, PredictionOutput) is not None
 
     # Retrieving the data get the same data
-    retrieved = manager.get_cache(simple_request, PredictionOutput)
+    retrieved = db_manager.get_cache(simple_request, PredictionOutput)
     assert retrieved == output
 
     # Another request is not in cache
     request2 = deepcopy(simple_request)
     request2.label = 0
-    assert not manager.in_cache(request2)
+    assert not db_manager.get_cache(request2, PredictionOutput) is None
 
     # Modifying the config, it's not in cache
-    cfg = deepcopy(simple_config)
-    cfg.model_name = 'test_model'
-    manager.cfg = cfg
-    assert not manager.in_cache(simple_request)
+    cfg = Config(**{**simple_config.dict(exclude={"id":True}), **{"model_name": "test_model"}})
+    cfg = db_manager.get_or_insert(cfg)
+    db_manager.cfg = cfg
+    assert db_manager.get_cache(simple_request, PredictionOutput) is None
 
 
 if __name__ == '__main__':

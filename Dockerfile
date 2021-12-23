@@ -1,4 +1,4 @@
-FROM python:3.7.11-slim
+FROM python:3.8-slim
 ENV PYTHONFAULTHANDLER=1 \
   PYTHONUNBUFFERED=1 \
   PYTHONHASHSEED=random \

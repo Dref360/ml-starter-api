@@ -7,7 +7,7 @@ We want to cache said predictions when possible.
 
 This project will:
 * Use FastAPI to create a clean API
-* Use MongoDB to store predictions based on the config and on the request.
+* Use SQLModel to store predictions based on the config and on the request.
 * Use HuggingFace Transformers to run the prediction.
 
 Hopefully, this can help others.

@@ -19,10 +19,10 @@ log = structlog.get_logger("ModelRunner")
 
 
 class ModelRunner:
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: Config, db_manager: DatabaseManager):
         self.cfg = cfg
         self._loaded_model: Dict[str, Pipeline] = {}
-        self.db_manager = DatabaseManager(cfg)
+        self.db_manager = db_manager
 
     def get_model(self, name):
         if name not in self._loaded_model:
@@ -31,24 +31,22 @@ class ModelRunner:
         return self._loaded_model[name]
 
     def load_text_classif_pipeline(self, checkpoint_path: str) -> Pipeline:
-        use_cuda = torch.cuda.is_available
+        use_cuda = torch.cuda.is_available()
         model = AutoModelForSequenceClassification.from_pretrained(checkpoint_path)
         tokenizer = AutoTokenizer.from_pretrained(checkpoint_path, use_fast=False)
         device = 0 if use_cuda else -1
 
-        # We set return_all_scores=True to get all softmax outputs
         return TextClassificationPipeline(
             model=model, tokenizer=tokenizer, device=device, return_all_scores=True
         )
 
     def run_prediction(self, request: PredictionInput) -> PredictionOutput:
-        if self.db_manager.in_cache(request):
-            log.info("Getting predictions from cache.")
-            return self.db_manager.get_cache(request, PredictionOutput)
+        if cached := self.db_manager.get_cache(request, to=PredictionOutput):
+            return cached
         else:
             log.info("Run prediction on model.")
             output = self._get_prediction(request)
-            self.db_manager.store(request, output)
+            self.db_manager.store(output)
             return output
 
     def _get_prediction(self, request) -> PredictionOutput:
@@ -62,4 +60,10 @@ class ModelRunner:
                 torch.LongTensor([request.label]),
             )
             loss = _loss.squeeze().item()
-        return PredictionOutput(distribution=out, prediction=np.argmax(out), loss=loss)
+        return PredictionOutput(
+            input_key_id=request.id,
+            config_id=self.cfg.id,
+            distribution=out,
+            prediction=np.argmax(out),
+            loss=loss,
+        )

@@ -12,14 +12,6 @@ services:
     - ./config:/config
     networks:
       - app_network
-  database:
-    image: "mongo"
-    environment:
-      - "MONGO_INITDB_DATABASE=db"
-    volumes:
-      - ./mongo-volume:/data/db
-    networks:
-      - app_network
 networks:
   app_network:
     driver: bridge

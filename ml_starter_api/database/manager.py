@@ -1,41 +1,47 @@
-from typing import Type, TypeVar
+from typing import Type, TypeVar, Optional
 
-from pydantic import BaseModel
-from pymongo import MongoClient
+from sqlmodel import Session, select
 
 from ml_starter_api.config import Config
-from ml_starter_api.models.predictions import NamedModel
+from ml_starter_api.models.predictions import (
+    ValidOutput,
+    ValidInput,
+    SQLModelWithId,
+)
 
-T = TypeVar("T", bound=BaseModel)
+T = TypeVar("T", bound=SQLModelWithId)
 
 
 class DatabaseManager:
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: Config, engine):
         self.cfg = cfg
+        self.engine = engine
 
-    def _get_database(self):
-        return MongoClient(host=self.cfg.db)["db"]
+    def get_cache(self, request: ValidInput, to: Type[T]) -> Optional[T]:
+        with Session(self.engine) as session:
+            statement = (
+                select(to).where(to.input_key_id == request.id).where(to.config_id == self.cfg.id)
+            )
+            results = session.exec(statement)
+            out = results.first()
+        return out
 
-    def in_cache(self, request: NamedModel) -> bool:
-        db = self._get_database()
-        collection = db[request.name]
-        out = collection.find_one({"request": request.dict(), "config": self.cfg.dict()})
-        return out is not None
+    def get_or_insert(self, item: T) -> T:
+        with Session(self.engine) as session:
+            all_similar = session.exec(select(type(item)))
+            found = [similar for similar in all_similar if item == similar]
+            if found:
+                item = found[0]
+            else:
+                session.add(item)
+                session.commit()
+                session.refresh(item)
+        return item
 
-    def get_cache(self, request: NamedModel, to: Type[T]) -> T:
-        db = self._get_database()
-        collection = db[request.name]
-        out = collection.find_one({"request": request.dict(), "config": self.cfg.dict()})
-        return to(**out["response"])
-
-    def store(self, request: NamedModel, output: BaseModel):
-        db = self._get_database()
-        collection = db[request.name]
-        out = collection.insert_one(
-            {
-                "request": request.dict(),
-                "config": self.cfg.dict(),
-                "response": output.dict(),
-            }
-        )
-        return out is None
+    def store(self, output: ValidOutput) -> Optional[int]:
+        with Session(self.engine) as session:
+            session.add(output)
+            session.commit()
+            session.refresh(output)
+            output_id: Optional[int] = output.id
+            return output_id
