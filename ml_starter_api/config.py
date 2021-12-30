@@ -2,7 +2,7 @@ from typing import Optional
 
 from sqlmodel import Field
 
-from ml_starter_api.models.predictions import SQLModelWithId
+from ml_starter_api.models.common import SQLModelWithId
 
 
 class Config(SQLModelWithId, table=True):  # type: ignore

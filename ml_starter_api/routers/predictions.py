@@ -24,4 +24,4 @@ def get_predictions(
 ) -> PredictionOutput:
     inp = PredictionInput(sentence=sentence, label=label)
     inp = model_runner.db_manager.get_or_insert(inp)
-    return model_runner.run_prediction(inp)
+    return model_runner.run_task(inp)

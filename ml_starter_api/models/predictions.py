@@ -1,38 +1,17 @@
 from typing import Optional, List
 
 from sqlalchemy import Column, JSON
-from sqlmodel import SQLModel, Field
+from sqlmodel import Field
+
+from ml_starter_api.models.common import ValidInput, ValidOutput
 
 
-class SQLModelWithId(SQLModel):
-    id: Optional[int] = Field(default=None, primary_key=True)
-
-    def __eq__(self, other):
-        if not isinstance(other, type(self)):
-            return False
-        own_dict = self.dict(exclude={"id": True})
-        other_dict = other.dict()
-        for key, v in own_dict.items():
-            if v != other_dict[key]:
-                return False
-        return True
-
-
-class ValidInput(SQLModelWithId):
-    pass
-
-
-class ValidOutput(SQLModelWithId):
-    config_id: Optional[int] = Field(default=None, foreign_key="config.id")
-
-
-class PredictionInput(ValidInput, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
+class PredictionInput(ValidInput, table=True):  # type: ignore
     sentence: str
     label: Optional[int]
 
 
-class PredictionOutput(ValidOutput, table=True):
+class PredictionOutput(ValidOutput, table=True):  # type: ignore
     input_key_id: Optional[int] = Field(default=None, foreign_key="predictioninput.id")
     distribution: List[float] = Field(sa_column=Column(JSON))
     loss: Optional[float]

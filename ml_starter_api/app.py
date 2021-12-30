@@ -1,6 +1,8 @@
+import json
 import os
 from typing import Optional
 
+import pydantic.json
 from fastapi import FastAPI, APIRouter
 from sqlmodel import SQLModel, create_engine
 
@@ -36,9 +38,11 @@ def create_app() -> FastAPI:
     _model_runner = ModelRunner(_config, _database_manager)
 
     from ml_starter_api.routers.predictions import router as pred_router
+    from ml_starter_api.routers.evaluation import router as evaluation_router
 
     api_router = APIRouter()
     api_router.include_router(pred_router, prefix="/predictions")
+    api_router.include_router(evaluation_router, prefix="/evaluation")
 
     app.include_router(api_router)
 
@@ -56,8 +60,17 @@ def create_app() -> FastAPI:
     return app
 
 
+def _custom_json_serializer(*args, **kwargs) -> str:
+    """
+    Encodes json in the same way that pydantic does.
+    """
+    return json.dumps(*args, default=pydantic.json.pydantic_encoder, **kwargs)
+
+
 def get_engine(cfg, echo=True):
     sqlite_url = f"sqlite:///{cfg.db}"
     connect_args = {"check_same_thread": False}
-    engine = create_engine(sqlite_url, echo=echo, connect_args=connect_args)
+    engine = create_engine(
+        sqlite_url, echo=echo, connect_args=connect_args, json_serializer=_custom_json_serializer
+    )
     return engine

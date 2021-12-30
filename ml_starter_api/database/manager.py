@@ -3,7 +3,7 @@ from typing import Type, TypeVar, Optional
 from sqlmodel import Session, select
 
 from ml_starter_api.config import Config
-from ml_starter_api.models.predictions import (
+from ml_starter_api.models.common import (
     ValidOutput,
     ValidInput,
     SQLModelWithId,
@@ -24,6 +24,7 @@ class DatabaseManager:
             )
             results = session.exec(statement)
             out = results.first()
+
         return out
 
     def get_or_insert(self, item: T) -> T:
@@ -36,7 +37,9 @@ class DatabaseManager:
                 session.add(item)
                 session.commit()
                 session.refresh(item)
-        return item
+        # Nested JSON Pydantic items are not formatted correctly.
+        reformatted: T = type(item)(**item.dict())
+        return reformatted
 
     def store(self, output: ValidOutput) -> Optional[int]:
         with Session(self.engine) as session:

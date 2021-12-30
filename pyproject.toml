@@ -14,6 +14,8 @@ torch = "^1.9.0"
 uvicorn = "^0.14.0"
 structlog = "^21.1.0"
 sqlmodel = "^0.0.5"
+datasets = "^1.17.0"
+sklearn = "^0.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"
