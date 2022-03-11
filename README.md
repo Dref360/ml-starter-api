@@ -12,6 +12,13 @@ This project will:
 
 Hopefully, this can help others.
 
+**Future work**
+1. Expand set of capabilities
+   1. Work on entire datasets
+   2. Uncertainty estimation
+2. Progress bar on progress
+3. Async routes
+
 ## How to use:
 
 1. Run the app:
