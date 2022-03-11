@@ -46,7 +46,6 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router)
 
-    # At the end probably?
     def create_db_and_tables():
         global _config
         SQLModel.metadata.create_all(engine)

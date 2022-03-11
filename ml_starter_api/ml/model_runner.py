@@ -7,14 +7,12 @@ import torch
 import torch.nn.functional as F
 from datasets import load_dataset, load_metric
 from transformers import (
-    AutoModelForSequenceClassification,
     Pipeline,
-    AutoTokenizer,
-    TextClassificationPipeline,
 )
 
 from ml_starter_api.config import Config
 from ml_starter_api.database.manager import DatabaseManager
+from ml_starter_api.ml.loading import load_text_classif_pipeline
 from ml_starter_api.models.common import ValidOutput, ValidInput
 from ml_starter_api.models.evaluation import EvaluationInput, EvaluationOutput
 from ml_starter_api.models.predictions import PredictionOutput, PredictionInput
@@ -30,6 +28,12 @@ class TypedFunctor:
 
 class ModelRunner:
     def __init__(self, cfg: Config, db_manager: DatabaseManager):
+        """Runner for machine learning operations.
+
+        Args:
+            cfg: Configuration object
+            db_manager: DatabaseManager to get/set ML ops.
+        """
         self.cfg = cfg
         self._loaded_model: Dict[str, Pipeline] = {}
         self.db_manager = db_manager
@@ -42,21 +46,19 @@ class ModelRunner:
             ),
         }
 
-    def get_model(self, name):
+    def get_model(self, name) -> Pipeline:
+        """Get Pipeline from cache or load it.
+
+        Args:
+            name: Name of the model to load.
+
+        Returns:
+            TextClassificationPipeline
+        """
         if name not in self._loaded_model:
             log.info("Loading model.")
-            self._loaded_model[name] = self.load_text_classif_pipeline(name)
+            self._loaded_model[name] = load_text_classif_pipeline(name)
         return self._loaded_model[name]
-
-    def load_text_classif_pipeline(self, checkpoint_path: str) -> Pipeline:
-        use_cuda = torch.cuda.is_available()
-        model = AutoModelForSequenceClassification.from_pretrained(checkpoint_path)
-        tokenizer = AutoTokenizer.from_pretrained(checkpoint_path, use_fast=False)
-        device = 0 if use_cuda else -1
-
-        return TextClassificationPipeline(
-            model=model, tokenizer=tokenizer, device=device, return_all_scores=True
-        )
 
     @overload
     def run_task(self, request: EvaluationInput) -> EvaluationOutput:
@@ -67,6 +69,14 @@ class ModelRunner:
         ...
 
     def run_task(self, request):
+        """Run a task or get it from database.
+
+        Args:
+            request: Input request.
+
+        Returns:
+            Request output
+        """
         task_data = self.task_mapping[type(request)]
         if cached := self.db_manager.get_cache(request, to=task_data.output_type):
             return cached
@@ -77,6 +87,14 @@ class ModelRunner:
             return output
 
     def _get_evaluate(self, request: EvaluationInput) -> EvaluationOutput:
+        """Runner function for evaluation.
+
+        Args:
+            request: Input request.
+
+        Returns:
+            Metrics for input.
+        """
         ds = load_dataset(request.dataset.name)[request.dataset.split]  # type: ignore
         metric = load_metric(request.metric_name)
         text, labels = ds[request.dataset.text_column], ds[request.dataset.label_column]
@@ -88,6 +106,14 @@ class ModelRunner:
         return EvaluationOutput(value=res, extras={}, input_key_id=request.id)
 
     def _get_prediction(self, request) -> PredictionOutput:
+        """Get prediction on a request.
+
+        Args:
+            request: Input data (sentence, label)
+
+        Returns:
+            Prediction from request.
+        """
         model = self.get_model(self.cfg.model_name)
         out = [sc["score"] for sc in model(request.sentence)[0]]
         loss: Optional[float] = None
