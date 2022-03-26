@@ -1,4 +1,11 @@
-FROM python:3.8-slim
+ARG DEVICE=cpu
+FROM python:3.8-slim as build_cpu
+# NOOP step on CPU
+FROM pytorch/pytorch:1.9.0-cuda10.2-cudnn7-runtime as build_gpu
+# NOOP step on GPU
+
+FROM build_${DEVICE}
+
 ENV PYTHONFAULTHANDLER=1 \
   PYTHONUNBUFFERED=1 \
   PYTHONHASHSEED=random \

@@ -3,12 +3,16 @@ import os
 from typing import Optional
 
 import pydantic.json
+import structlog
+import torch.cuda
 from fastapi import FastAPI, APIRouter
 from sqlmodel import SQLModel, create_engine
 
 from ml_starter_api.config import Config
 from ml_starter_api.database.manager import DatabaseManager
 from ml_starter_api.ml.model_runner import ModelRunner
+
+log = structlog.get_logger()
 
 _model_runner: Optional[ModelRunner] = None
 _config: Optional[Config] = None
@@ -31,6 +35,8 @@ def create_app() -> FastAPI:
     global _model_runner, _config, _database_manager
     if "CFG_PATH" not in os.environ:
         raise EnvironmentError("Can't find the config in CFG_PATH")
+    log.info("Starting API")
+    log.info(f"CUDA: {'available' if torch.cuda.is_available() else 'unavailable'}")
     app = FastAPI()
     _config = Config.parse_file(os.environ["CFG_PATH"])
     engine = get_engine(_config)

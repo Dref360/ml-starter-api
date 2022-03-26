@@ -78,7 +78,9 @@ class ModelRunner:
             Request output
         """
         task_data = self.task_mapping[type(request)]
-        if cached := self.db_manager.get_cache(request, to=task_data.output_type):
+        cached = self.db_manager.get_cache(request, to=task_data.output_type)
+        if cached:
+            # Was already in the database.
             return cached
         else:
             log.info(f"Run {task_data.function} on model.")
